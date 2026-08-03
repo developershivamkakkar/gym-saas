@@ -81,7 +81,7 @@
       "status": "active"
     }
   }
-  ```
+
 
 #### 👤 2. Get Profile & Quota Stats
 - **Endpoint**: `GET /api/v1/partner/auth/me`
