@@ -41,9 +41,20 @@ class ShardController extends Controller
     /**
      * Manually provision a new database shard
      */
-    public function store(ShardRouter $shardRouter)
+    public function store(Request $request, ShardRouter $shardRouter)
     {
-        $shard = $shardRouter->getAvailableShard();
+        $shard = $shardRouter->createNewShard();
+
+        // Audit Log
+        AuditLog::create([
+            'actor_type'  => 'Developer',
+            'actor_id'    => $request->user() ? $request->user()->getKey() : 1,
+            'action'      => 'shard.provisioned',
+            'target_type' => 'Shard',
+            'target_id'   => $shard->id,
+            'payload'     => ['hash_id' => $shard->hash_id, 'name' => $shard->name],
+            'ip_address'  => $request->ip(),
+        ]);
 
         return response()->json([
             'success' => true,

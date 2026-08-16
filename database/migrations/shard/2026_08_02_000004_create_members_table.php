@@ -23,6 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tenant_id', 'phone']);
+            $table->unique(['tenant_id', 'member_code']);
         });
     }
 

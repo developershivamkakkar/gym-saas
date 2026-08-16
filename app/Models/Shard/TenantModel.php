@@ -38,7 +38,10 @@ abstract class TenantModel extends Model
         static::addGlobalScope('tenant_isolation', function (Builder $builder) {
             if (app()->bound('tenant')) {
                 $tenant = app('tenant');
-                $builder->where($builder->getModel()->getTable() . '.tenant_id', $tenant->tenant_id);
+                $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : ($tenant->id ?? $tenant->getKey());
+                if ($tenantId) {
+                    $builder->where($builder->getModel()->getTable() . '.tenant_id', $tenantId);
+                }
             }
         });
 
@@ -46,12 +49,15 @@ abstract class TenantModel extends Model
         // 2. CREATING HOOK: Auto-populate `tenant_id` on Model Save
         // ----------------------------------------------------------------------
         // Whenever a new record is created (e.g. Member::create([...])), Eloquent
-        // automatically sets `$model->tenant_id = app('tenant')->tenant_id`.
+        // automatically sets `$model->tenant_id = $tenantId`.
         // Developers do NOT need to pass 'tenant_id' manually!
         static::creating(function (Model $model) {
             if (app()->bound('tenant') && !$model->tenant_id) {
                 $tenant = app('tenant');
-                $model->tenant_id = $tenant->tenant_id;
+                $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : ($tenant->id ?? $tenant->getKey());
+                if ($tenantId) {
+                    $model->tenant_id = $tenantId;
+                }
             }
         });
     }

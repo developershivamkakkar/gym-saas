@@ -35,14 +35,20 @@ class Staff extends Authenticatable
         static::addGlobalScope('tenant_isolation', function ($builder) {
             if (app()->bound('tenant')) {
                 $tenant = app('tenant');
-                $builder->where('staff.tenant_id', $tenant->tenant_id);
+                $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : ($tenant->id ?? $tenant->getKey());
+                if ($tenantId) {
+                    $builder->where('staff.tenant_id', $tenantId);
+                }
             }
         });
 
         static::creating(function ($model) {
             if (app()->bound('tenant') && !$model->tenant_id) {
                 $tenant = app('tenant');
-                $model->tenant_id = $tenant->tenant_id;
+                $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : ($tenant->id ?? $tenant->getKey());
+                if ($tenantId) {
+                    $model->tenant_id = $tenantId;
+                }
             }
         });
     }

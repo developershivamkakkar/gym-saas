@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('custom_domain')->nullable()->unique();
             $table->foreignId('partner_id')->constrained('partners')->onDelete('cascade');
             $table->foreignId('shard_id')->constrained('shards')->onDelete('restrict');
-            $table->enum('plan_tier', ['starter', 'pro', 'enterprise'])->default('starter');
+            $table->enum('plan_tier', ['basic', 'starter', 'pro', 'enterprise'])->default('basic');
             $table->enum('status', ['active', 'trial', 'suspended', 'cancelled'])->default('trial');
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('suspended_at')->nullable();

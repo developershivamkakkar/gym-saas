@@ -16,6 +16,9 @@ return new class extends Migration
             $table->string('primary_color')->default('#3B82F6');
             $table->string('currency', 10)->default('INR');
             $table->decimal('tax_rate', 5, 2)->default(18.00);
+            $table->string('member_prefix', 20)->default('SVS');
+            $table->string('member_suffix', 20)->nullable();
+            $table->unsignedBigInteger('next_member_number')->default(1001);
             $table->string('support_email')->nullable();
             $table->string('support_phone')->nullable();
             $table->timestamps();

@@ -4,9 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Tenant;
 use App\Models\Master\Partner;
-use App\Models\Shard\Staff;
-use App\Models\Shard\GymConfig;
-use App\Models\Shard\Branch;
+use App\Models\Master\Shard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -20,11 +18,11 @@ class TenantProvisioningService
     }
 
     /**
-     * Create a new Gym / Clinic Tenant Instance
+     * Provision a new Gym Tenant Instance across Master and Shard DB
      */
     public function createGym(array $data, Partner $partner): Tenant
     {
-        // 1. Get an available shard BEFORE starting transaction (since MySQL DDL statements like CREATE DATABASE auto-commit)
+        // 1. Get available shard database (< max_tenants capacity)
         $shard = $this->shardRouter->getAvailableShard();
 
         return DB::connection('master')->transaction(function () use ($data, $partner, $shard) {
@@ -34,7 +32,7 @@ class TenantProvisioningService
                 'slug'          => $data['slug'],
                 'partner_id'    => $partner->getKey(),
                 'shard_id'      => $shard->getKey(),
-                'plan_tier'     => $data['plan_tier'] ?? 'starter',
+                'plan_tier'     => $data['plan_tier'] ?? 'basic',
                 'status'        => 'active',
                 'trial_ends_at' => now()->addDays(14),
             ]);
@@ -51,40 +49,45 @@ class TenantProvisioningService
             $driver = config('database.connections.master.driver', 'sqlite');
             config(['database.connections.tenant.database' => $driver === 'sqlite' ? database_path($shard->db_name . '.sqlite') : $shard->db_name]);
             DB::purge('tenant');
-            app()->instance('tenant', (object)[
-                'tenant_id'   => $tenant->getKey(),
-                'tenant_name' => $tenant->name,
-                'slug'        => $tenant->slug,
-            ]);
 
             // Seed or update Gym Config
-            GymConfig::updateOrCreate(
-                ['tenant_id' => $tenant->getKey()],
-                [
-                    'gym_name'      => $data['gym_name'],
-                    'support_email' => $data['owner_email'],
-                    'support_phone' => $data['owner_phone'] ?? null,
-                ]
-            );
+            try {
+                DB::connection('tenant')->table('gym_configs')->updateOrInsert(
+                    ['tenant_id' => $tenant->getKey()],
+                    [
+                        'gym_name'      => $data['gym_name'],
+                        'support_email' => $data['owner_email'],
+                        'support_phone' => $data['owner_phone'] ?? null,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ]
+                );
+            } catch (\Throwable $e) {
+                // Ignore if table missing in local dev
+            }
 
             // Seed Main Branch
-            $branch = Branch::create([
+            $branchId = DB::connection('tenant')->table('branches')->insertGetId([
                 'tenant_id'      => $tenant->getKey(),
                 'name'           => 'Main Branch',
                 'code'           => 'MAIN-01',
                 'is_main_branch' => true,
+                'created_at'     => now(),
+                'updated_at'     => now(),
             ]);
 
             // Seed Owner Staff User
-            Staff::create([
+            DB::connection('tenant')->table('staff')->insert([
                 'tenant_id'  => $tenant->getKey(),
-                'branch_id'  => $branch->id,
+                'branch_id'  => $branchId,
                 'name'       => $data['owner_name'],
                 'email'      => $data['owner_email'],
                 'phone'      => $data['owner_phone'] ?? null,
                 'password'   => Hash::make($data['owner_password']),
                 'role'       => 'owner',
                 'is_active'  => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             return $tenant;

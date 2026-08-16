@@ -3,40 +3,25 @@
 namespace App\Http\Controllers\Gym;
 
 use App\Http\Controllers\Controller;
-use App\Models\Shard\Staff;
-use App\Models\Shard\GymConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-/**
- * ==============================================================================
- * 🔐 GYM / CLINIC INSTANCE AUTHENTICATION CONTROLLER
- * ==============================================================================
- *
- * Purpose:
- * Handles login, token refresh, logout, and profile endpoints for all internal
- * Gym Instance users (Gym Owners, Branch Managers, Front Desk Staff, Trainers).
- *
- * Security:
- * Requires TenantResolutionMiddleware to be active on the route so that:
- * 1. Queries execute against the correct Shard Database.
- * 2. `Staff::where(...)` queries are automatically scoped by `tenant_id`.
- */
 class AuthController extends Controller
 {
     /**
-     * Gym User Login (Owner, Manager, Front Desk, Trainer)
+     * Authenticate Gym Staff / Owner / Manager against Shard Database
      */
     public function login(Request $request)
     {
-        // Retrieve resolved active tenant context bound by TenantResolutionMiddleware
-        $tenant = app('tenant');
+        $tenant = $request->attributes->get('tenant') ?: app('tenant');
+        $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : $tenant->getKey();
 
-        // 1. Validate Input Payload
         $validator = Validator::make($request->all(), [
             'email'    => 'required|email',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string',
         ]);
 
         if ($validator->fails()) {
@@ -46,106 +31,147 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // 2. Query Staff table on the resolved shard DB (automatically scoped by tenant_id)
-        $staff = Staff::where('email', $request->email)->first();
+        // Query staff table on assigned shard DB connection ('tenant') strictly scoped to current tenant_id
+        $staff = DB::connection('tenant')
+            ->table('staff')
+            ->where('tenant_id', $tenantId)
+            ->where('email', strtolower($request->email))
+            ->first();
 
-        // 3. Verify Password Hash
         if (!$staff || !Hash::check($request->password, $staff->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email or password for ' . $tenant->tenant_name
+                'message' => 'Invalid gym credentials'
             ], 401);
         }
 
-        // 4. Verify Active Status
-        if (!$staff->is_active) {
+        if (isset($staff->is_active) && !$staff->is_active) {
             return response()->json([
                 'success' => false,
-                'message' => 'User account is deactivated'
+                'message' => 'Your staff account has been deactivated by the gym administrator.'
             ], 403);
         }
 
-        // 5. Fetch Gym Branding Config & Generate API Bearer Token
-        $gymConfig = GymConfig::first();
-        $token = bin2hex(random_bytes(32));
+        // Fetch primary branch details
+        $primaryBranch = DB::connection('tenant')
+            ->table('branches')
+            ->where('id', $staff->branch_id ?? 1)
+            ->first();
 
-        // Format role title (e.g. "owner" -> "Owner", "branch_manager" -> "Branch Manager")
-        $roleTitle = ucwords(str_replace('_', ' ', $staff->role));
+        // Generate Bearer Token for MVP
+        $token = hash('sha256', Str::random(40) . $staff->id . time());
 
-        // 6. Return Structured Authenticated Response
+        // Update timestamps safely
+        try {
+            DB::connection('tenant')
+                ->table('staff')
+                ->where('id', $staff->id)
+                ->update(['updated_at' => now()]);
+        } catch (\Throwable $e) {
+            // Safe fallback
+        }
+
         return response()->json([
             'success' => true,
-            'message' => "{$roleTitle} logged in successfully",
+            'message' => 'Gym user authenticated successfully',
             'portal'  => 'gym',
             'token'   => $token,
             'tenant'  => [
-                'id'          => $tenant->tenant_id,
-                'name'        => $tenant->tenant_name,
-                'slug'        => $tenant->slug,
-                'gym_name'    => $gymConfig ? $gymConfig->gym_name : $tenant->tenant_name,
-                'logo_url'    => $gymConfig ? $gymConfig->logo_url : null,
-                'color'       => $gymConfig ? $gymConfig->primary_color : '#3B82F6',
+                'id'           => $tenant->id,
+                'name'         => $tenant->name,
+                'slug'         => $tenant->slug,
+                'plan_tier'    => $tenant->plan_tier,
+                'instance_url' => $tenant->instance_url,
             ],
             'data'    => [
-                'id'        => $staff->id,
-                'name'      => $staff->name,
-                'email'     => $staff->email,
-                'role'      => $staff->role,
-                'role_title'=> $roleTitle,
-                'branch_id' => $staff->branch_id,
+                'id'         => $staff->id,
+                'name'       => $staff->name,
+                'email'      => $staff->email,
+                'phone'      => $staff->phone ?? null,
+                'role'       => $staff->role ?? 'staff',
+                'branch'     => $primaryBranch ? [
+                    'id'   => $primaryBranch->id,
+                    'name' => $primaryBranch->name,
+                    'code' => $primaryBranch->code ?? 'MAIN',
+                ] : null,
             ]
         ]);
     }
 
     /**
-     * Refresh Token Endpoint
+     * Get Authenticated Gym User Profile & Tenant Context
+     */
+    public function me(Request $request)
+    {
+        $tenant = $request->attributes->get('tenant') ?: app('tenant');
+        $tenantId = method_exists($tenant, 'getNumericId') ? $tenant->getNumericId() : $tenant->getKey();
+
+        // Fetch primary owner/staff for request user simulation scoped to current tenant
+        $staff = DB::connection('tenant')
+            ->table('staff')
+            ->where('tenant_id', $tenantId)
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if (!$staff) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Staff profile not found'
+            ], 404);
+        }
+
+        $branch = DB::connection('tenant')
+            ->table('branches')
+            ->where('id', $staff->branch_id ?? 1)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'tenant'  => [
+                'id'           => $tenant->id,
+                'name'         => $tenant->name,
+                'slug'         => $tenant->slug,
+                'plan_tier'    => $tenant->plan_tier,
+                'status'       => $tenant->status,
+                'instance_url' => $tenant->instance_url,
+            ],
+            'data'    => [
+                'id'         => $staff->id,
+                'name'       => $staff->name,
+                'email'      => $staff->email,
+                'phone'      => $staff->phone ?? null,
+                'role'       => $staff->role ?? 'owner',
+                'branch'     => $branch ? [
+                    'id'   => $branch->id,
+                    'name' => $branch->name,
+                    'code' => $branch->code ?? 'MAIN',
+                ] : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Refresh Token
      */
     public function refresh(Request $request)
     {
-        $tenant = app('tenant');
-        $token = bin2hex(random_bytes(32));
+        $newToken = hash('sha256', Str::random(40) . time());
 
         return response()->json([
             'success' => true,
             'message' => 'Token refreshed successfully',
-            'portal'  => 'gym',
-            'tenant'  => [
-                'id'   => $tenant->tenant_id,
-                'name' => $tenant->tenant_name,
-                'slug' => $tenant->slug,
-            ],
-            'token'   => $token
+            'token'   => $newToken
         ]);
     }
 
     /**
-     * Logout Endpoint
+     * Logout
      */
-    public function logout(Request $request)
+    public function logout()
     {
-        $tenant = app('tenant');
-
         return response()->json([
             'success' => true,
-            'message' => 'Logged out successfully from ' . $tenant->tenant_name
-        ]);
-    }
-
-    /**
-     * Get Authenticated User Profile
-     */
-    public function me(Request $request)
-    {
-        $tenant = app('tenant');
-
-        return response()->json([
-            'success' => true,
-            'tenant'  => [
-                'id'   => $tenant->tenant_id,
-                'name' => $tenant->tenant_name,
-                'slug' => $tenant->slug,
-            ],
-            'data'    => $request->user()
+            'message' => 'Logged out successfully'
         ]);
     }
 }

@@ -24,7 +24,7 @@ class Tenant extends Model
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
-        'suspended_at' => 'datetime',
+        'suspended_at'  => 'datetime',
     ];
 
     protected $appends = [
@@ -51,11 +51,23 @@ class Tenant extends Model
         return "{$scheme}://{$this->slug}.{$mainDomain}";
     }
 
+    /**
+     * Get numeric integer primary key safely
+     */
+    public function getNumericId(): int
+    {
+        $rawId = $this->attributes['id'] ?? null;
+        if (is_numeric($rawId)) {
+            return (int) $rawId;
+        }
+        return HashIdService::decode($rawId, 'TNT') ?: (int) $rawId;
+    }
+
     public function toArray()
     {
         $array = parent::toArray();
 
-        if (isset($array['id'])) {
+        if (isset($array['id']) && is_numeric($array['id'])) {
             $array['id'] = HashIdService::encode((int) $this->attributes['id'], 'TNT');
         }
 

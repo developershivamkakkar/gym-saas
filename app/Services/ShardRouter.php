@@ -9,6 +9,40 @@ use Illuminate\Support\Facades\Artisan;
 class ShardRouter
 {
     /**
+     * Connect the 'tenant' database connection dynamically to a specific shard ID or model
+     */
+    public function connectTenantToShard($tenantId, $shardIdOrModel): Shard
+    {
+        if ($shardIdOrModel instanceof Shard) {
+            $shard = $shardIdOrModel;
+        } else {
+            $shard = Shard::find($shardIdOrModel) ?? Shard::first();
+        }
+
+        $driver = config('database.connections.master.driver', 'sqlite');
+
+        if ($driver === 'sqlite') {
+            $dbPath = database_path($shard->name . '.sqlite');
+            if (!file_exists($dbPath)) {
+                touch($dbPath);
+            }
+            config(['database.connections.tenant.database' => $dbPath]);
+        } else {
+            config([
+                'database.connections.tenant.host'     => $shard->db_host,
+                'database.connections.tenant.port'     => $shard->db_port,
+                'database.connections.tenant.database' => $shard->db_name,
+                'database.connections.tenant.username' => $shard->db_user,
+                'database.connections.tenant.password' => $shard->db_password ?? '',
+            ]);
+        }
+
+        DB::purge('tenant');
+
+        return $shard;
+    }
+
+    /**
      * Get an available database shard that has capacity (< max_tenants).
      * If no shard has room, automatically provision a new shard database!
      */
@@ -32,7 +66,7 @@ class ShardRouter
     /**
      * Automatically provision a new Database Shard (fitcore_shard_XX)
      */
-    protected function createNewShard(): Shard
+    public function createNewShard(): Shard
     {
         $lastShard = Shard::orderBy('id', 'desc')->first();
         $nextNumber = $lastShard ? ($lastShard->id + 1) : 1;

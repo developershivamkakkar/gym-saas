@@ -6,29 +6,29 @@ Welcome to the **FitCore** SaaS Gym Management System project repository.
 
 ## 📚 Project Documentation
 
-All core architectural, technical, API, and testing documents are stored in the [`docs/`](file:///d:/Startup/GYM_SAAS/docs) directory:
+All core architectural, technical, API, testing, and frontend AI specification documents are stored in the [`docs/`](file:///d:/Startup/GYM_SAAS/docs) directory:
 
-1. **[Developer Portal API Reference](file:///d:/Startup/GYM_SAAS/docs/Developer_Portal_APIs.md)** ⭐
-   - Comprehensive dedicated API documentation for the **Developer Portal (`admin.fitcore.io`)**
-   - Includes full 17 API endpoint specifications, pre-suspension guards, zero-downtime gym reassignment, and audit log APIs
+0. **[Master Backend Architecture Specification](file:///d:/Startup/GYM_SAAS/docs/BACKEND_COMPLETE_ARCHITECTURE.md)** 🌟 *(Complete Architecture of all 3 Portals, Database Sharding, 3-Layer Isolation, Rules Engine & All Endpoints)*
+1. **[Master Project Documentation](file:///d:/Startup/GYM_SAAS/docs/MASTER_PROJECT_DOCUMENTATION.md)** 🌟 *(Complete Overview of System Architecture, Portals, API Modules, & Specs)*
+1. **[Developer Portal Frontend Spec](file:///d:/Startup/GYM_SAAS/docs/Developer_Portal_Frontend_Spec.md)** ⭐
+   - Complete React UI specification for `admin.fitcore.io` (Routes, TypeScript Interfaces, Pre-suspension guards, API mappings).
+2. **[Partner Portal Frontend Spec](file:///d:/Startup/GYM_SAAS/docs/Partner_Portal_Frontend_Spec.md)** ⭐
+   - Complete React UI specification for `partner.fitcore.io` (Routes, Quota Progress Widgets, Provisioning Wizard, API mappings).
+3. **[Gym Instance Frontend Spec](file:///d:/Startup/GYM_SAAS/docs/Gym_Instance_Frontend_Spec.md)** ⭐
+   - Complete React UI specification for `{slug}.fitcore.io` (Tenant Headers, Branch Quota Guards, Dashboard, API mappings).
 
-2. **[Partner Portal API Reference](file:///d:/Startup/GYM_SAAS/docs/Partner_Portal_APIs.md)** ⭐
-   - Comprehensive dedicated API documentation for the **Partner Portal (`partner.fitcore.io`)**
-   - Includes Partner authentication, Gym Provisioning using Quota, Quota enforcement, and Partner Dashboard APIs
+---
 
-3. **[Complete API Reference & Integration Guide](file:///d:/Startup/GYM_SAAS/docs/API_Documentation.md)**
-   - Master OpenAPI / Postman style documentation for **all 3 portals** (*Developer*, *Partner*, and *Gym Instance*)
-
-4. **[Scale & Multi-Shard Testing Report](file:///d:/Startup/GYM_SAAS/docs/Scale_Testing_Report.md)**
-   - Test report for 60-gym scale testing across 4 database shards (`fitcore_shard_01` through `04`)
-
-5. **[Backend Auth & Tenant Resolution Architecture](file:///d:/Startup/GYM_SAAS/docs/Backend_Auth_Tenant_Setup.md)**
-   - Technical setup for 3-portal authentication (*Developer*, *Partner*, *Gym Instance*)
-   - `TenantResolutionMiddleware` details, dynamic PDO shard connections, and `TenantModel` isolation scope
-
-6. **[Software Requirements Specification (SRS)](file:///d:/Startup/GYM_SAAS/docs/SRS_GymSaaS.md)**
-   - Complete functional and non-functional requirements
-
-7. **[Technical Architecture & DB Design Document](file:///d:/Startup/GYM_SAAS/docs/TechArch_GymSaaS.md)**
-   - Three-portal system architecture (*Developer Portal*, *Partner Portal*, *Gym Instance*)
-   - Configurable Shard-Pool database strategy (20 gyms per shard default)
+### ⚙️ Backend API & Infrastructure References
+4. **[Developer Portal API Reference](file:///d:/Startup/GYM_SAAS/docs/Developer_Portal_APIs.md)**
+   - API reference for `admin.fitcore.io` (17 Endpoints, Hashed IDs, Audit logs).
+5. **[Partner Portal API Reference](file:///d:/Startup/GYM_SAAS/docs/Partner_Portal_APIs.md)**
+   - API reference for `partner.fitcore.io` (Partner Auth, Quota enforcement, Gym provisioning).
+6. **[Gym Instance Portal API Reference](file:///d:/Startup/GYM_SAAS/docs/Gym_Instance_APIs.md)**
+   - API reference for `{slug}.fitcore.io` (Shard Auth, Branch Quota Guards, Dashboard).
+7. **[Complete API Reference & Integration Guide](file:///d:/Startup/GYM_SAAS/docs/API_Documentation.md)**
+   - Master Postman/OpenAPI style documentation for all 3 portals.
+8. **[Scale & Multi-Shard Testing Report](file:///d:/Startup/GYM_SAAS/docs/Scale_Testing_Report.md)**
+   - 60-gym scale testing report across 4 database shards (`fitcore_shard_01` to `04`).
+9. **[Technical Architecture & DB Design Document](file:///d:/Startup/GYM_SAAS/docs/TechArch_GymSaaS.md)**
+   - Three-portal system architecture & Shard-Pool database strategy.

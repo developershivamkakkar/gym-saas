@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Master\Partner;
 use App\Models\Master\Tenant;
 use App\Services\TenantProvisioningService;
+use App\Services\ShardRouter;
 use App\Services\HashIdService;
 use Illuminate\Support\Facades\Hash;
 
@@ -124,7 +125,7 @@ class TestPartnerReassignmentFlow extends Command
         ]);
         $request->headers->set('X-Tenant-Slug', $slug);
 
-        $middleware = new \App\Http\Middleware\TenantResolutionMiddleware();
+        $middleware = new \App\Http\Middleware\TenantResolutionMiddleware(app(ShardRouter::class));
         $response = $middleware->handle($request, function ($req) use ($email, $password) {
             $controller = new \App\Http\Controllers\Gym\AuthController();
             return $controller->login($req);
