@@ -1,0 +1,15 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "simplified_null_return": true,
+        "trailing_comma_in_multiline": {
+            "elements": ["arrays", "arguments"]
+        }
+    },
+    "exclude": [
+        "vendor",
+        "storage",
+        "bootstrap/cache",
+        "node_modules"
+    ]
+}

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Pre-commit hook for Laravel project
+# Runs code quality checks before allowing commits
+# Installation: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+echo "🔍 Running pre-commit checks..."
+
+# Run Laravel Pint
+echo "✓ Checking code style with Laravel Pint..."
+if ! ./vendor/bin/pint --test app config routes; then
+    echo "❌ Code style check failed! Run './vendor/bin/pint' to fix."
+    exit 1
+fi
+
+# Run PHPStan
+echo "✓ Running static analysis with PHPStan..."
+if ! ./vendor/bin/phpstan analyse --memory-limit=2G; then
+    echo "⚠️  PHPStan found issues. Review above."
+    # Don't fail - allow commit with warning
+fi
+
+# Run tests
+echo "✓ Running tests..."
+if ! php artisan test --stop-on-failure; then
+    echo "❌ Tests failed! Fix failing tests before committing."
+    exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"
+exit 0
